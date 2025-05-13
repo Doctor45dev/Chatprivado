@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Chat Privado com Notificações e Respostas</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      overflow: hidden;
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px;
+      height: 100vh;
+      min-height: 600px;
+    }
+    #app {
+      background: #fff;
+      width: 100%;
+      max-width: 600px;
+      height: 100vh;
+      max-height: 800px;
+      display: flex;
+      flex-direction: column;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      overflow: hidden;
+    }
+    header {
+      background-color: #222;
+      color: white;
+      padding: 15px;
+      font-weight: 700;
+      font-size: 1.5rem;
+      text-align: center;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    #messages {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #fafafa;
+    }
+    .message {
+      max-width: 75%;
+      padding: 10px 15px;
+      border-radius: 20px;
+      font-size: 1rem;
+      line-height: 1.3;
+      word-wrap: break-word;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      user-select: text;
+      cursor: pointer;
+    }
+    .sent {
+      background-color: #dcf8c6;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+      color: #222;
+    }
+    .received {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+      color: #222;
+    }
+    .sender-name {
+      font-weight: 700;
+      margin-bottom: 3px;
+      font-size: 0.9rem;
+      color: #555;
+    }
+    #input-area {
+      padding: 10px 15px;
+      display: flex;
+      background-color: #fff;
+      border-top: 1px solid #ddd;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    #input-message {
+      flex: 1;
+      font-size: 1.1rem;
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      outline: none;
+      max-height: 100px;
+      resize: none;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      transition: border-color 0.3s ease;
+    }
+    #input-message:focus {
+      border-color: #222;
+    }
+    #send-btn {
+      background-color: #222;
+      color: white;
+      border: none;
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-left: 10px;
+      padding: 0 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      user-select: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    #send-btn:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+    #send-btn:hover:not(:disabled) {
+      background-color: #555;
+    }
+    #overlay {
+      position: fixed;
+      top: 0; left:0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0,0,0,0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #nickname-prompt {
+      background: white;
+      padding: 25px 30px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 320px;
+      text-align: center;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    }
+    #nickname-prompt h2 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #222;
+    }
+    #nickname-input {
+      width: 100%;
+      font-size: 1rem;
+      padding: 10px 15px;
+      border-radius: 20px;
+      border: 1px solid #ddd;
+      outline: none;
+      margin-bottom: 15px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    #nickname-input:focus {
+      border-color: #222;
+    }
+    #nickname-btn {
+      background-color: #222;
+      color: white;
+      border: none;
+      font-weight: 700;
+      font-size: 1.1rem;
+      padding: 10px 15px;
+      border-radius: 20px;
+      cursor: pointer;
+      width: 100%;
+      user-select: none;
+      transition: background-color 0.3s ease;
+    }
+    #nickname-btn:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+    #nickname-btn:hover:not(:disabled) {
+      background-color: #555;
+    }
+    #cancel-reply {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-left: 10px;
+      padding: 5px 10px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" role="main" aria-label="Aplicação de Chat Privado">
+    <header>MENSAGENS</header>
+    <section id="messages" aria-live="polite" aria-relevant="additions" tabindex="0"></section>
+    <form id="input-area" aria-label="Enviar mensagem">
+      <textarea id="input-message" rows="1" placeholder="Digite sua mensagem..." aria-label="Mensagem" disabled></textarea>
+      <button id="send-btn" type="submit" aria-label="Enviar mensagem" disabled>Enviar</button>
+      <button id="cancel-reply" type="button" aria-label="Cancelar Resposta" onclick="cancelReply()">Cancelar Resposta</button>
+    </form>
+  </div>
+
+  <div id="overlay" aria-modal="true" role="dialog" aria-labelledby="nickname-title" aria-describedby="nickname-desc">
+    <div id="nickname-prompt">
+      <h2 id="nickname-title">Qual seu nome?</h2>
+      <input type="text" id="nickname-input" placeholder="Digite seu nome" aria-required="true" aria-label="Nome" />
+      <button id="nickname-btn" disabled>Entrar no chat</button>
+      <p id="nickname-desc" style="margin-top: 10px; font-size: 0.9rem; color:#666;">
+        Esse nome será usado para identificar suas mensagens no chat.
+      </p>
+    </div>
+  </div>
+
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <!-- Firebase Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script>
+  (function(){
+    // Your Firebase configuration - replace with your real config!
+    const firebaseConfig = {
+      apiKey: "AIzaSyC-hndzciAZZhImPqckKp42dmhFTOsmGOU",
+      authDomain: "chatprivado-dbcef.firebaseapp.com",
+      projectId: "chatprivado-dbcef",
+      storageBucket: "chatprivado-dbcef.firebasestorage.app",
+      messagingSenderId: "658327629128",
+      appId: "1:658327629128:web:b0fe98390a8b9c2d2ed77d"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const overlay = document.getElementById('overlay');
+    const nicknameInput = document.getElementById('nickname-input');
+    const nicknameBtn = document.getElementById('nickname-btn');
+    const messagesEl = document.getElementById('messages');
+    const inputMessage = document.getElementById('input-message');
+    const sendBtn = document.getElementById('send-btn');
+    const cancelReplyBtn = document.getElementById('cancel-reply');
+
+    let nickname = null;
+    let lastMessageId = null;
+    let replyToMessage = null;
+
+    // Request notification permission after user enters nickname
+    function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission === "default") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            console.log("Permissão de notificações concedida");
+          }
+        });
+      }
+    }
+
+    nicknameInput.addEventListener('input', () => {
+      nicknameBtn.disabled = nicknameInput.value.trim().length === 0;
+    });
+
+    nicknameBtn.addEventListener('click', () => {
+      nickname = nicknameInput.value.trim();
+      if(!nickname) return;
+
+      overlay.style.display = 'none';
+      inputMessage.disabled = false;
+      sendBtn.disabled = true;
+      inputMessage.focus();
+
+      requestNotificationPermission();
+      listenMessages();
+    });
+
+    inputMessage.addEventListener('input', () => {
+      sendBtn.disabled = inputMessage.value.trim().length === 0;
+      inputMessage.style.height = 'auto';
+      let newHeight = inputMessage.scrollHeight;
+      if(newHeight > 100) newHeight = 100;
+      inputMessage.style.height = newHeight + 'px';
+    });
+
+    function notifyNewMessage(sender, text) {
+      if (Notification.permission === "granted" && !document.hasFocus()) {
+        const notification = new Notification(`Nova mensagem de ${sender}`, {
+          body: text.length > 60 ? text.substring(0, 60) + "..." : text,
+          tag: "chat-message"
+        });
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      }
+    }
+
+    function listenMessages() {
+      db.collection('private_chat_messages')
+        .orderBy('timestamp', 'asc')
+        .limit(100)
+        .onSnapshot((snapshot) => {
+          messagesEl.innerHTML = '';
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            addMessageToDOM(data.sender, data.text, data.sender === nickname);
+          });
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+
+          const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+          if (lastDoc && lastDoc.id !== lastMessageId) {
+            lastMessageId = lastDoc.id;
+            const lastData = lastDoc.data();
+            if (lastData.sender !== nickname) {
+              notifyNewMessage(lastData.sender, lastData.text);
+            }
+          }
+        }, error => {
+          console.error("Erro ao escutar mensagens:", error);
+        });
+    }
+
+    function addMessageToDOM(sender, text, isSent) {
+      const msgDiv = document.createElement('div');
+      msgDiv.classList.add('message');
+      msgDiv.classList.add(isSent ? 'sent' : 'received');
+
+      const senderEl = document.createElement('div');
+      senderEl.className = 'sender-name';
+      senderEl.textContent = sender;
+      msgDiv.appendChild(senderEl);
+
+      const textEl = document.createElement('div');
+      textEl.textContent = text;
+      msgDiv.appendChild(textEl);
+
+      msgDiv.onclick = () => {
+        replyToMessage = text;
+        inputMessage.value = `@${sender}: ${text} `;
+        sendBtn.disabled = false;
+        cancelReplyBtn.style.display = 'inline-block';
+        inputMessage.focus();
+        // Move cursor to end
+        inputMessage.selectionStart = inputMessage.selectionEnd = inputMessage.value.length;
+      };
+
+      messagesEl.appendChild(msgDiv);
+    }
+
+    document.getElementById('input-area').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = inputMessage.value.trim();
+      if(!text || !nickname) return;
+
+      db.collection('private_chat_messages').add({
+        sender: nickname,
+        text: text,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        inputMessage.value = '';
+        sendBtn.disabled = true;
+        inputMessage.style.height = 'auto';
+        inputMessage.focus();
+        replyToMessage = null;
+        cancelReplyBtn.style.display = 'none';
+      }).catch(error => {
+        console.error("Erro ao enviar mensagem:", error);
+        alert("Erro ao enviar mensagem, tente novamente.");
+      });
+    });
+
+    window.cancelReply = function() {
+      inputMessage.value = '';
+      sendBtn.disabled = true;
+      replyToMessage = null;
+      cancelReplyBtn.style.display = 'none';
+      inputMessage.focus();
+    }
+  })();
+  </script>
+
+  <!--
+  Instruções:
+
+  1. Substitua o objeto firebaseConfig pelas suas credenciais do Firebase.
+  2. Configure seu Firestore com regras adequadas.
+  3. Hospede o arquivo e compartilhe com seu grupo privado.
+  4. Ao entrar, o sistema solicitará permissão para notificações.
+  5. Clique em mensagens para responder diretamente e use "Cancelar Resposta" para limpar.
+
+  -->
+</body>
+</html>
+
